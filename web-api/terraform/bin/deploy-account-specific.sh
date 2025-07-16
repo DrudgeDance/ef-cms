@@ -18,8 +18,10 @@ popd || exit
 ../../../../scripts/verify-terraform-version.sh
 
 BUCKET="${EFCMS_DOMAIN}.terraform.deploys"
+[ -n "$TERRAFORM_BUCKET" ] && BUCKET="$TERRAFORM_BUCKET"
 KEY="permissions-${ENV}.tfstate"
 LOCK_TABLE=efcms-terraform-lock
+REGION=us-east-1
 
 rm -rf .terraform
 rm -f .terraform.lock.hcl
@@ -55,8 +57,8 @@ export TF_VAR_lower_env_account_id="$LOWER_ENV_ACCOUNT_ID"
 npm run build:assets
 
 terraform init -upgrade -backend=true \
- -backend-config=bucket="${BUCKET}" \
- -backend-config=key="${KEY}" \
- -backend-config=dynamodb_table="${LOCK_TABLE}" \
- -backend-config=region="us-east-1"
+ -backend-config=bucket="$BUCKET" \
+ -backend-config=key="$KEY" \
+ -backend-config=dynamodb_table="$LOCK_TABLE" \
+ -backend-config=region="$REGION"
 terraform apply

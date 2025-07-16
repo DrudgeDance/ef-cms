@@ -48,11 +48,14 @@ echo "  - COLOR=${COLOR}"
 ../../../../scripts/verify-terraform-version.sh
 
 BUCKET="${EFCMS_DOMAIN}.terraform.deploys"
+[ -n "$TERRAFORM_BUCKET" ] && BUCKET="$TERRAFORM_BUCKET"
 ALL_COLORS_KEY="documents-${ENV}.tfstate"
 KEY="documents-${ENV}-${COLOR}.tfstate"
 LOCK_TABLE=efcms-terraform-lock
+REGION=us-east-1
 
 rm -rf .terraform
+rm -f .terraform.lock.hcl
 
 echo "Initiating provisioning for environment [${ENV}] in AWS region [${REGION}]"
 sh ../../bin/create-bucket.sh "${BUCKET}" "${KEY}" "${REGION}"
@@ -125,6 +128,10 @@ then
   export TF_VAR_viewer_protocol_policy=$CW_VIEWER_PROTOCOL_POLICY
 fi
 
-terraform init -upgrade -backend=true -backend-config=bucket="${BUCKET}" -backend-config=key="${KEY}" -backend-config=dynamodb_table="${LOCK_TABLE}" -backend-config=region="${REGION}"
+terraform init -upgrade -backend=true \
+ -backend-config=bucket="$BUCKET" \
+ -backend-config=key="$KEY" \
+ -backend-config=dynamodb_table="$LOCK_TABLE" \
+ -backend-config=region="$REGION"
 terraform plan -out execution-plan
 terraform apply -auto-approve execution-plan
