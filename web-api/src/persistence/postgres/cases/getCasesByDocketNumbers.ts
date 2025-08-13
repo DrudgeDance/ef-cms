@@ -6,7 +6,6 @@ import { NotFoundError } from '@web-api/errors/errors';
 import { purgeDynamoKeys } from '@web-api/persistence/dynamo/helpers/purgeDynamoKeys';
 import { getIrsPractitionersOnCase } from '@web-api/persistence/dynamo/practitioners/getIrsPractitionersOnCase';
 import { getPrivatePractitionersOnCase } from '@web-api/persistence/dynamo/practitioners/getPrivatePractitionersOnCase';
-import { queryFull } from '@web-api/persistence/dynamodbClientService';
 import { caseCorrespondenceEntity } from '@web-api/persistence/postgres/caseCorrespondences/mapper';
 import { CaseCorrespondenceKysely } from '@web-api/persistence/postgres/caseCorrespondences/schema';
 import { fromKyselyCase } from '@web-api/persistence/postgres/cases/mapper';
@@ -14,6 +13,8 @@ import { CaseKysely } from '@web-api/persistence/postgres/cases/schema';
 import { fromKyselyDocketEntry } from '@web-api/persistence/postgres/docketEntries/mapper';
 import { DocketEntryKysely } from '@web-api/persistence/postgres/docketEntries/schema';
 import { difference, isEmpty, sortBy } from 'lodash';
+import { TrialSessionKysely } from '../trialSessions/schema';
+import { fromKyselyTrialSession } from '@web-api/persistence/postgres/trialSessions/mapper';
 
 export const ALL_OMITTABLE_CASE_FIELDS = [
   'docketEntries',
@@ -218,6 +219,7 @@ function convertDbCaseToRawCase(
     archivedDocketEntries: dbCase.archivedDocketEntries.map(aD =>
       fromKyselyDocketEntry(aD),
     ),
+    hearings: dbCase.hearings.map(hi => fromKyselyTrialSession(hi, hi.pdf, hi.caseOrders)),
   };
 
   return purgeDynamoKeys(appCase);
@@ -312,23 +314,55 @@ async function getCaseCorrespondenceByDocketNumber(docketNumbers: string[]) {
 
 async function getHearings(
   docketNumbers: string[],
-): Promise<{ docketNumber: string; hearings: any[] }[]> {
-  const hearingsInfo = await Promise.all(
-    docketNumbers.map(async docketNumber => {
-      const hearings = await queryFull({
-        ExpressionAttributeNames: {
-          '#pk': 'pk',
-          '#sk': 'sk',
-        },
-        ExpressionAttributeValues: {
-          ':pk': `case|${docketNumber}`,
-          ':prefix': 'hearing|',
-        },
-        KeyConditionExpression: '#pk = :pk and begins_with(#sk, :prefix)',
-        applicationContext,
-      });
-      return { docketNumber, hearings };
-    }),
+): Promise<{ docketNumber: string; hearings: TrialSessionKysely[] }[]> {
+  // const hearingsInfo = await getDbReader(reader =>
+  //   reader
+  //     .selectFrom('dwTrialSessionCase as ch')
+  //     .innerJoin(
+  //       'dwTrialSession as ts',
+  //       'ch.trialSessionId',
+  //       'ts.trialSessionId',
+  //     )
+  //     .select(({ fn }) => [
+  //       'ch.docketNumber',
+  //       fn.jsonAgg('ts').as('hearings'), // This IS lying about types
+  //     ])
+  //     .where('ch.docketNumber', 'in', docketNumbers)
+  //     .groupBy('ch.docketNumber')
+  //     .execute(),
+  // );
+
+  // TODO 10493: this is a hack to make the the fromKyselyTrialSession functionality work; rethink this
+  const hearingsInfoRaw = await getDbReader(reader =>
+    reader
+      .selectFrom('dwTrialSessionCase as ch')
+      .select(['ch.trialSessionId', 'ch.docketNumber'])
+      .innerJoin(
+        'dwTrialSession as ts',
+        'ch.trialSessionId',
+        'ts.trialSessionId',
+      )
+      .selectAll('ts')
+      .where('ch.docketNumber', 'in', docketNumbers)
+      .where('ch.isHearing', 'is', true)
+      .orderBy('ts.createdAt', 'asc')
+      .execute(),
+  );
+  const hearingsInfo = Object.values(
+    hearingsInfoRaw.reduce(
+      (acc, item) => {
+        const { docketNumber, ...rest } = item;
+        if (!acc[docketNumber]) {
+          acc[docketNumber] = { docketNumber, hearings: [] };
+        }
+        acc[docketNumber].hearings.push(rest);
+        return acc;
+      },
+      {} as Record<
+        string,
+        { docketNumber: string; hearings: TrialSessionKysely[] }
+      >,
+    ),
   );
 
   return hearingsInfo;

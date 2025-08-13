@@ -22,6 +22,15 @@ import { upsertDocketEntries } from '@web-api/persistence/postgres/docketEntries
 import { docketEntrySeeds } from '@web-api/persistence/postgres/utils/seed/fixtures/docketEntries';
 import { OPENSEARCH_SYNC_ACTIONS } from '@web-api/lambdas/openSearch/openSearchSyncHandler';
 import { DocketEntry } from '@shared/business/entities/DocketEntry';
+import {
+  trialSessionCase,
+  trialSessions,
+  trialSessionWorkingCopies,
+} from './fixtures/trialSessions';
+import {
+  toKyselyNewTrialSession,
+  toKyselyNewTrialSessionWorkingCopy,
+} from '../../trialSessions/mapper';
 
 export const seed = async () => {
   const insertMessages = pgInsertInto({
@@ -46,6 +55,26 @@ export const seed = async () => {
     table: 'dwCaseWorksheet',
     values: caseWorksheets,
     onConflictColumns: ['docketNumber'],
+  });
+
+  const insertTrialSession = pgInsertInto({
+    table: 'dwTrialSession',
+    values: trialSessions.map(ts => toKyselyNewTrialSession(ts)),
+    onConflictColumns: ['trialSessionId'],
+  });
+
+  const insertTrialSessionCase = pgInsertInto({
+    table: 'dwTrialSessionCase',
+    values: trialSessionCase,
+    onConflictColumns: ['trialSessionId', 'docketNumber'],
+  });
+
+  const insertTrialSessionWorkingCopy = pgInsertInto({
+    table: 'dwTrialSessionWorkingCopy',
+    values: trialSessionWorkingCopies.map(ts =>
+      toKyselyNewTrialSessionWorkingCopy(ts),
+    ),
+    onConflictColumns: ['trialSessionId', 'userId'],
   });
 
   const insertWorkItem = getDbWriter({
@@ -104,6 +133,9 @@ export const seed = async () => {
     insertWorkItem,
     insertCases,
     insertDocketEntries,
+    insertTrialSession,
+    insertTrialSessionCase,
+    insertTrialSessionWorkingCopy,
   ]);
 };
 

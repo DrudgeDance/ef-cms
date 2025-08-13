@@ -59,6 +59,18 @@ import {
   DW_MINUTE_SHEET_COLUMNS,
   MinuteSheetTable,
 } from '@web-api/persistence/postgres/minuteSheets/schema';
+import {
+  TrialSessionCaseTable,
+  DW_TRIAL_SESSION_CASE_COLUMNS,
+  DW_TRIAL_SESSION_COLUMNS,
+  DW_TRIAL_SESSION_NOTIFICATION_PROCESSING,
+  DW_TRIAL_SESSION_PAPER_PDF_COLUMNS,
+  DW_TRIAL_SESSION_WORKING_COPY_COLUMNS,
+  TrialSessionNotificationProcessingTable,
+  TrialSessionPaperPdfTable,
+  TrialSessionTable,
+  TrialSessionWorkingCopyTable,
+} from './persistence/postgres/trialSessions/schema';
 
 const DEFAULT = {};
 
@@ -66,15 +78,20 @@ interface DatabaseSchemaType {
   dwCase: DatabaseTableMetadata<CaseTable>;
   dwCaseCorrespondence: DatabaseTableMetadata<CaseCorrespondenceTable>;
   dwCaseDeadline: DatabaseTableMetadata<CaseDeadlineTable>;
+  dwTrialSessionCase: DatabaseTableMetadata<TrialSessionCaseTable>;
   dwCaseWorksheet: DatabaseTableMetadata<CaseWorksheetTable>;
   dwChangeOfAddress: DatabaseTableMetadata<ChangeOfAddressTable>;
   dwConnection: DatabaseTableMetadata<ConnectionTable>;
   dwDocketEntry: DatabaseTableMetadata<DocketEntryTable>;
   dwDocketEntryWorksheet: DatabaseTableMetadata<DocketEntryWorksheetTable>;
   dwMessage: DatabaseTableMetadata<MessageTable>;
-  dwNotification: DatabaseTableMetadata<NotificationTable>;
   dwMinuteSheet: DatabaseTableMetadata<MinuteSheetTable>;
+  dwNotification: DatabaseTableMetadata<NotificationTable>;
   dwResponseString: DatabaseTableMetadata<ResponseStringTable>;
+  dwTrialSession: DatabaseTableMetadata<TrialSessionTable>;
+  dwTrialSessionNotificationProcessing: DatabaseTableMetadata<TrialSessionNotificationProcessingTable>;
+  dwTrialSessionPaperPdf: DatabaseTableMetadata<TrialSessionPaperPdfTable>;
+  dwTrialSessionWorkingCopy: DatabaseTableMetadata<TrialSessionWorkingCopyTable>;
   dwUserCaseNote: DatabaseTableMetadata<UserCaseNoteTable>;
   dwWorkItem: DatabaseTableMetadata<WorkItemTable>;
 }
@@ -106,6 +123,10 @@ export const DatabaseSchema: DatabaseSchemaType = {
   dwCaseDeadline: {
     table: DEFAULT as CaseDeadlineTable,
     columns: DW_CASE_DEADLINE_COLUMNS,
+  },
+  dwTrialSessionCase: {
+    table: DEFAULT as TrialSessionCaseTable,
+    columns: DW_TRIAL_SESSION_CASE_COLUMNS,
   },
   dwCaseWorksheet: {
     table: DEFAULT as CaseWorksheetTable,
@@ -144,6 +165,22 @@ export const DatabaseSchema: DatabaseSchemaType = {
   dwResponseString: {
     table: DEFAULT as ResponseStringTable,
     columns: DW_RESPONSE_STRING_COLUMNS,
+  },
+  dwTrialSession: {
+    table: DEFAULT as TrialSessionTable,
+    columns: DW_TRIAL_SESSION_COLUMNS,
+  },
+  dwTrialSessionNotificationProcessing: {
+    table: DEFAULT as TrialSessionNotificationProcessingTable,
+    columns: DW_TRIAL_SESSION_NOTIFICATION_PROCESSING,
+  },
+  dwTrialSessionPaperPdf: {
+    table: DEFAULT as TrialSessionPaperPdfTable,
+    columns: DW_TRIAL_SESSION_PAPER_PDF_COLUMNS,
+  },
+  dwTrialSessionWorkingCopy: {
+    table: DEFAULT as TrialSessionWorkingCopyTable,
+    columns: DW_TRIAL_SESSION_WORKING_COPY_COLUMNS,
   },
   dwUserCaseNote: {
     table: DEFAULT as UserCaseNoteTable,

@@ -18,7 +18,6 @@ import diff from 'diff-arrays-of-objects';
 import { upsertDocketEntries } from '@web-api/persistence/postgres/docketEntries/upsertDocketEntries';
 import { settlePromises } from '@web-api/utilities/settlePromises';
 import { upsertCases } from '@web-api/persistence/postgres/cases/upsertCases';
-import { removeCaseFromHearing } from '@web-api/persistence/dynamo/trialSessions/removeCaseFromHearing';
 import {
   removeIrsPractitionerOnCase,
   removePrivatePractitionerOnCase,
@@ -27,6 +26,7 @@ import {
   updateIrsPractitionerOnCase,
   updatePrivatePractitionerOnCase,
 } from '@web-api/persistence/dynamo/cases/updatePractitionerOnCase';
+import { removeCasesFromHearings } from '@web-api/persistence/postgres/trialSessions/removeCasesFromHearings';
 
 // Because we used to rely on Dynamo, we needed to manually maintain relations in app code.
 // In the future, it would be good to avoid doing so by leveraging SQL more effectively.
@@ -109,13 +109,12 @@ export const updateCaseAndAssociations = async ({
     upsertDocketEntries(docketEntries),
     ...messages.map(message => updateMessage(message)),
     upsertCaseCorrespondences(correspondences),
-    ...deletedHearings.map(({ trialSessionId }) =>
-      removeCaseFromHearing({
-        applicationContext,
-        docketNumber: caseToUpdate.docketNumber,
-        trialSessionId,
-      }),
-    ),
+    removeCasesFromHearings({
+      trialSessionCases: deletedHearings.map(dh => ({
+        trialSessionId: dh.trialSessionId,
+        docketNumber: caseToUpdate.docketNumber
+      }))
+    }),
     ...irsPractitionersToDelete.map(practitioner =>
       removeIrsPractitionerOnCase({
         applicationContext,
