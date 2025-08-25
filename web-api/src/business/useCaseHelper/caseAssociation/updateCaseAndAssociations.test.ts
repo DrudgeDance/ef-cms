@@ -6,11 +6,10 @@ import '@web-api/persistence/postgres/docketEntries/mocks.jest';
 import '@web-api/persistence/postgres/trialSessions/mocks.jest';
 jest.mock('@shared/business/entities/CaseDeadline');
 jest.mock('@web-api/persistence/postgres/messages/getMessagesByDocketNumber');
-jest.mock('@web-api/persistence/postgres/messages/updateMessage');
-jest.mock('@web-api/persistence/dynamo/cases/removePractitionerOnCase');
-jest.mock('@web-api/persistence/dynamo/cases/updatePractitionerOnCase');
-jest.mock('@web-api/persistence/dynamo/cases/removePractitionerOnCase');
-jest.mock('@web-api/persistence/dynamo/cases/updatePractitionerOnCase');
+jest.mock('@web-api/persistence/postgres/messages/upsertMessages');
+jest.mock(
+  '@web-api/persistence/postgres/cases/userOnCase/disassociateUsersFromCases',
+);
 import { removeCasesFromHearings as removeCasesFromHearingsMock } from '@web-api/persistence/postgres/trialSessions/removeCasesFromHearings';
 import { Case } from '@shared/business/entities/cases/Case';
 import { CaseDeadline } from '@shared/business/entities/CaseDeadline';
@@ -23,50 +22,34 @@ import { getCaseDeadlinesByDocketNumber as getCaseDeadlinesByDocketNumberMock } 
 import { getMessagesByDocketNumber as getMessagesByDocketNumberMock } from '@web-api/persistence/postgres/messages/getMessagesByDocketNumber';
 import { mockDocketClerkUser } from '@shared/test/mockAuthUsers';
 import { updateCaseAndAssociations } from './updateCaseAndAssociations';
-import { updateMessage as updateMessageMock } from '@web-api/persistence/postgres/messages/updateMessage';
+import { upsertMessages as upsertMessagesMock } from '@web-api/persistence/postgres/messages/upsertMessages';
 import { upsertCaseCorrespondences as upsertCaseCorrespondencesMock } from '@web-api/persistence/postgres/caseCorrespondences/upsertCaseCorrespondences';
 import { upsertCaseDeadlines as upsertCaseDeadlinesMock } from '@web-api/persistence/postgres/caseDeadlines/upsertCaseDeadlines';
 import { getCaseByDocketNumber as getCaseByDocketNumberMock } from '@web-api/persistence/postgres/cases/getCaseByDocketNumber';
 import { MOCK_MESSAGE } from '@shared/test/mockMessage';
 import { upsertCases as upsertCasesMock } from '@web-api/persistence/postgres/cases/upsertCases';
-import {
-  removeIrsPractitionerOnCase as removeIrsPractitionerOnCaseMock,
-  removePrivatePractitionerOnCase as removePrivatePractitionerOnCaseMock,
-} from '@web-api/persistence/dynamo/cases/removePractitionerOnCase';
-import {
-  updateIrsPractitionerOnCase as updateIrsPractitionerOnCaseMock,
-  updatePrivatePractitionerOnCase as updatePrivatePractitionerOnCaseMock,
-} from '@web-api/persistence/dynamo/cases/updatePractitionerOnCase';
 import { getUniqueId } from '@shared/sharedAppContext';
 import { upsertDocketEntries as upsertDocketEntriesMock } from '@web-api/persistence/postgres/docketEntries/upsertDocketEntries';
-import { MOCK_WORK_ITEM } from '@shared/test/mockWorkItem';
+import { disassociateUsersFromCases as disassociateUsersFromCasesMock } from '@web-api/persistence/postgres/cases/userOnCase/disassociateUsersFromCases';
+import { associateUsersWithCases as associateUsersWithCasesMock } from '@web-api/persistence/postgres/cases/userOnCase/associateUsersWithCases';
 
 describe('updateCaseAndAssociations', () => {
   let validMockCase;
 
+  const disassociateUsersFromCases = jest.mocked(
+    disassociateUsersFromCasesMock,
+  );
+  const associateUsersWithCases = jest.mocked(associateUsersWithCasesMock);
   const upsertDocketEntries = jest.mocked(upsertDocketEntriesMock);
   const removeCasesFromHearings = jest.mocked(removeCasesFromHearingsMock);
   const getCaseByDocketNumber = getCaseByDocketNumberMock as jest.Mock;
   const upsertCases = jest.mocked(upsertCasesMock);
   const getMessagesByDocketNumber = getMessagesByDocketNumberMock as jest.Mock;
-  const updateMessage = updateMessageMock as jest.Mock;
+  const upsertMessages = upsertMessagesMock as jest.Mock;
   const upsertCaseDeadlines = upsertCaseDeadlinesMock as jest.Mock;
   const getCaseDeadlinesByDocketNumber =
     getCaseDeadlinesByDocketNumberMock as jest.Mock;
   const upsertCaseCorrespondences = upsertCaseCorrespondencesMock as jest.Mock;
-
-  const updateIrsPractitionerOnCase = jest.mocked(
-    updateIrsPractitionerOnCaseMock,
-  );
-  const removeIrsPractitionerOnCase = jest.mocked(
-    removeIrsPractitionerOnCaseMock,
-  );
-  const updatePrivatePractitionerOnCase = jest.mocked(
-    updatePrivatePractitionerOnCaseMock,
-  );
-  const removePrivatePractitionerOnCase = jest.mocked(
-    removePrivatePractitionerOnCaseMock,
-  );
 
   beforeAll(() => {
     validMockCase = new Case(
@@ -160,7 +143,7 @@ describe('updateCaseAndAssociations', () => {
     expect(upsertDocketEntries).not.toHaveBeenCalled();
 
     // updateCaseMessages
-    expect(updateMessage).not.toHaveBeenCalled();
+    expect(upsertMessages).not.toHaveBeenCalled();
 
     // updateCorrespondence
     expect(upsertCaseCorrespondences).not.toHaveBeenCalled();
@@ -168,13 +151,9 @@ describe('updateCaseAndAssociations', () => {
     // updateHearings
     expect(removeCasesFromHearings).not.toHaveBeenCalled();
 
-    // updateIrsPractitioners
-    expect(removeIrsPractitionerOnCase).not.toHaveBeenCalled();
-    expect(updateIrsPractitionerOnCase).not.toHaveBeenCalled();
-
-    // updatePrivatePractitioners
-    expect(removePrivatePractitionerOnCase).not.toHaveBeenCalled();
-    expect(updatePrivatePractitionerOnCase).not.toHaveBeenCalled();
+    // users
+    expect(associateUsersWithCases).not.toHaveBeenCalled();
+    expect(disassociateUsersFromCases).not.toHaveBeenCalled();
 
     // updateCaseDeadlines
     expect(upsertCaseDeadlines).not.toHaveBeenCalled();
@@ -213,14 +192,12 @@ describe('updateCaseAndAssociations', () => {
 
     expect(upsertCases.mock.calls[0][0]).toMatchObject([caseToUpdate]);
     expect(removeCasesFromHearings).toHaveBeenCalled();
-    expect(removeCasesFromHearings.mock.calls[0][0]).toMatchObject(
-      {
-        trialSessionCases: [
-          { docketNumber, trialSessionId: trialSessionIds[1] },
-          { docketNumber, trialSessionId: trialSessionIds[2] },
-        ],
-      },
-    );
+    expect(removeCasesFromHearings.mock.calls[0][0]).toMatchObject({
+      trialSessionCases: [
+        { docketNumber, trialSessionId: trialSessionIds[1] },
+        { docketNumber, trialSessionId: trialSessionIds[2] },
+      ],
+    });
   });
 
   describe('docket entries', () => {
@@ -288,7 +265,9 @@ describe('updateCaseAndAssociations', () => {
         archivedDocketEntries: MOCK_DOCUMENTS,
         docketEntries: MOCK_DOCUMENTS.map(d => ({
           ...d,
-          workItem: MOCK_WORK_ITEM,
+          workItemId: 'someId',
+          qcComplete: false,
+          qcViewed: false,
         })),
       };
       const caseToUpdate = {
@@ -296,7 +275,9 @@ describe('updateCaseAndAssociations', () => {
         archivedDocketEntries: MOCK_DOCUMENTS,
         docketEntries: MOCK_DOCUMENTS.map(d => ({
           ...d,
-          workItem: undefined,
+          workItemId: 'someOtherId',
+          qcComplete: true,
+          qcViewed: true,
         })),
       };
 
@@ -387,8 +368,8 @@ describe('updateCaseAndAssociations', () => {
         authorizedUser: mockDocketClerkUser,
         caseToUpdate: mockCaseWithIrsPractitioners,
       });
-      expect(updateIrsPractitionerOnCase).not.toHaveBeenCalled();
-      expect(removeIrsPractitionerOnCase).not.toHaveBeenCalled();
+      expect(disassociateUsersFromCases).toHaveBeenCalledWith([]);
+      expect(associateUsersWithCases).toHaveBeenCalledWith([]);
     });
 
     it('calls updateIrsPractitionerOnCase on changed entries in irsPractitioners', async () => {
@@ -406,11 +387,10 @@ describe('updateCaseAndAssociations', () => {
         },
       });
 
-      expect(removeIrsPractitionerOnCase).not.toHaveBeenCalled();
-      expect(updateIrsPractitionerOnCase).toHaveBeenCalled();
-      expect(updateIrsPractitionerOnCase.mock.calls[0][0]).toMatchObject({
+      expect(disassociateUsersFromCases).toHaveBeenCalledWith([]);
+      expect(associateUsersWithCases).toHaveBeenCalled();
+      expect(associateUsersWithCases.mock.calls[0][0][0]).toMatchObject({
         docketNumber: validMockCase.docketNumber,
-        practitioner: updatedPractitioner,
         userId: practitionerId,
       });
     });
@@ -424,28 +404,10 @@ describe('updateCaseAndAssociations', () => {
         },
       });
 
-      expect(updateIrsPractitionerOnCase).not.toHaveBeenCalled();
-      expect(removeIrsPractitionerOnCase).toHaveBeenCalled();
-      expect(removeIrsPractitionerOnCase.mock.calls[0][0]).toMatchObject({
+      expect(associateUsersWithCases).toHaveBeenCalledWith([]);
+      expect(disassociateUsersFromCases).toHaveBeenCalled();
+      expect(disassociateUsersFromCases.mock.calls[0][0][0]).toMatchObject({
         docketNumber: validMockCase.docketNumber,
-        userId: practitionerId,
-      });
-    });
-
-    it('calls updateIrsPractitionerOnCase to update gsi1pk for unchanged irsPractitioners when the case is part of a consolidated group', async () => {
-      await updateCaseAndAssociations({
-        authorizedUser: mockDocketClerkUser,
-        caseToUpdate: {
-          ...mockCaseWithIrsPractitioners,
-          leadDocketNumber: '101-23',
-        },
-      });
-
-      expect(removePrivatePractitionerOnCase).not.toHaveBeenCalled();
-      expect(updateIrsPractitionerOnCase).toHaveBeenCalled();
-      expect(updateIrsPractitionerOnCase.mock.calls[0][0]).toMatchObject({
-        docketNumber: validMockCase.docketNumber,
-        practitioner: mockCaseWithIrsPractitioners.irsPractitioners![0],
         userId: practitionerId,
       });
     });
@@ -479,8 +441,8 @@ describe('updateCaseAndAssociations', () => {
         authorizedUser: mockDocketClerkUser,
         caseToUpdate: mockCaseWithIrsAndPrivatePractitioners,
       });
-      expect(updatePrivatePractitionerOnCase).not.toHaveBeenCalled();
-      expect(removePrivatePractitionerOnCase).not.toHaveBeenCalled();
+      expect(associateUsersWithCases).toHaveBeenCalledWith([]);
+      expect(disassociateUsersFromCases).toHaveBeenCalledWith([]);
     });
 
     it('calls updatePrivatePractitionerOnCase on changed entries in privatePractitioners', async () => {
@@ -498,30 +460,10 @@ describe('updateCaseAndAssociations', () => {
         },
       });
 
-      expect(removePrivatePractitionerOnCase).not.toHaveBeenCalled();
-      expect(updatePrivatePractitionerOnCase).toHaveBeenCalled();
-      expect(updatePrivatePractitionerOnCase.mock.calls[0][0]).toMatchObject({
+      expect(disassociateUsersFromCases).toHaveBeenCalledWith([]);
+      expect(associateUsersWithCases).toHaveBeenCalled();
+      expect(associateUsersWithCases.mock.calls[0][0][0]).toMatchObject({
         docketNumber: validMockCase.docketNumber,
-        practitioner: updatedPractitioner,
-        userId: practitionerId,
-      });
-    });
-
-    it('calls updatePrivatePractitionerOnCase to update gsi1pk for unchanged privatePractitioners when the case is part of a consolidated group', async () => {
-      await updateCaseAndAssociations({
-        authorizedUser: mockDocketClerkUser,
-        caseToUpdate: {
-          ...mockCaseWithIrsAndPrivatePractitioners,
-          leadDocketNumber: '101-23',
-        },
-      });
-
-      expect(removePrivatePractitionerOnCase).not.toHaveBeenCalled();
-      expect(updatePrivatePractitionerOnCase).toHaveBeenCalled();
-      expect(updatePrivatePractitionerOnCase.mock.calls[0][0]).toMatchObject({
-        docketNumber: validMockCase.docketNumber,
-        practitioner:
-          mockCaseWithIrsAndPrivatePractitioners.privatePractitioners![0],
         userId: practitionerId,
       });
     });
@@ -535,9 +477,9 @@ describe('updateCaseAndAssociations', () => {
         },
       });
 
-      expect(updatePrivatePractitionerOnCase).not.toHaveBeenCalled();
-      expect(removePrivatePractitionerOnCase).toHaveBeenCalled();
-      expect(removePrivatePractitionerOnCase.mock.calls[0][0]).toMatchObject({
+      expect(associateUsersWithCases).toHaveBeenCalledWith([]);
+      expect(disassociateUsersFromCases).toHaveBeenCalled();
+      expect(disassociateUsersFromCases.mock.calls[0][0][0]).toMatchObject({
         docketNumber: validMockCase.docketNumber,
         userId: practitionerId,
       });
@@ -547,7 +489,7 @@ describe('updateCaseAndAssociations', () => {
   describe('user case messages', () => {
     beforeAll(() => {
       const mockMessages = [MOCK_MESSAGE];
-      updateMessage.mockResolvedValue(true);
+      upsertMessages.mockResolvedValue(true);
       getMessagesByDocketNumber.mockResolvedValue(mockMessages);
     });
     it('completes without altering message records if no message updates are necessary', async () => {
@@ -556,7 +498,7 @@ describe('updateCaseAndAssociations', () => {
         caseToUpdate: validMockCase,
       });
       expect(getMessagesByDocketNumber).not.toHaveBeenCalled();
-      expect(updateMessage).not.toHaveBeenCalled();
+      expect(upsertMessages).toHaveBeenCalledWith([]);
     });
 
     it('gets messages and throws validation errors if updates are not valid', async () => {
@@ -573,7 +515,7 @@ describe('updateCaseAndAssociations', () => {
         }),
       ).rejects.toThrow('entity was invalid');
       expect(getMessagesByDocketNumber).toHaveBeenCalled();
-      expect(updateMessage).not.toHaveBeenCalled();
+      expect(upsertMessages).not.toHaveBeenCalled();
     });
 
     it('gets messages and persists them if valid', async () => {
@@ -588,7 +530,7 @@ describe('updateCaseAndAssociations', () => {
         },
       });
       expect(getMessagesByDocketNumberMock).toHaveBeenCalled();
-      expect(updateMessage).toHaveBeenCalled();
+      expect(upsertMessages).toHaveBeenCalled();
     });
   });
 
