@@ -8,13 +8,6 @@ import express from 'express';
 
 export const app = express();
 
-process.on('uncaughtException', e => {
-  console.log('onPgConnectionError', e);
-});
-process.on('unhandledRejection', (e) => {
-  console.log('onUnhandledRejection', e);
-});
-
 // This was default in express 4.x. The default changed in express 5.x, so we have to specify it here
 app.set('query parser', 'extended');
 
