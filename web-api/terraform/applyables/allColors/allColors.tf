@@ -19,7 +19,11 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
+<<<<<<< HEAD
       version = "~>6.10.0"
+=======
+       version = "~>6.12.0"
+>>>>>>> 9036-env-maintence-mode
     }
   }
 }
