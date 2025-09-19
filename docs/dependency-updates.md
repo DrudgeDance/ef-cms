@@ -122,6 +122,10 @@ regex search the entire project for `"~> \d+.\d+.\d+"` and make sure it's to the
 
 Below is a list of dependencies that are locked down due to known issues with security, integration problems within DAWSON, etc. Try to update these items but please be aware of the issue that's documented and ensure it's been resolved.
 
+### DWT 
+
+- Minor versions of DWT _should_ be updated, but require that Court IT update the Windows clients in concert with our app. Do not update without coordinating.
+
 ### puppeteer and @sparticuz/chromium
 
 - When updating puppeteer or puppeteer core in the project, make sure to also match versions in `web-api/runtimes/puppeteer/package.json` as this is our lambda layer which we use to generate pdfs. Puppeteer and chromium versions should always match between package.json and web-api/runtimes/puppeteer/package.json.  Remember to run `npm install --prefix web-api/runtimes/puppeteer` to install and update the package-lock file.
@@ -146,13 +150,9 @@ Below is a list of dependencies that are locked down due to known issues with se
 
 - As of [this release](https://github.com/mozilla/pdf.js/releases/tag/v5.1.91), and I think [this PR](https://github.com/mozilla/pdf.js/pull/19689), pdfjs seems to expect certain browser-side API functionality when loaded. This causes issues with our Cypress tests. The best way to fix this is worth investigating further. Perhaps we could polyfill, or even consider creating an issue in the pdfjs repo.
 
-### babel-jest, babel-core, jest
+### babel-jest, babel-core
 Tried to update to 30.0.0-beta.3 from 29.7.0 on Friday, June 06, 2025, we weren't able to update it because it conflicts with ts-jest 29.3.4.
 On June 26 2025, newer versions of babel-core and jest core also started to cause issues with ts-jest. Once ts-jest is updated these issues should all clear up.
-
-### jest-environment-jsdom
-This dependency was causing problems with specific unit tests that were using Object.defineProperty. 
-We should tackle this issue either in a dedicated ticket or in a future dependency update but for now (6/30/25) we left it.
 
 ### @types/node
 The major version of this package should match our major version of node. At the moment that we are using node v22.16.0 so we should use a package that starts with 22.
@@ -162,6 +162,9 @@ We encountered failure in integration tests running pg version 8.16.3, so we had
 
 ### TypeScript
 We cannot update TypeScript version beyond v5.8.3 until ts-jest supports it
+
+### p-queue
+There are a few scripts that depend on p-queue v6.6.2.  Upgrading this past version 6 will cause issues related to module imports.  It might be good to verify if the scripts using p-queue are still in use and if not, we could just remove p-queue and those scripts.
 
 ## Incrementing the Node Cache Key Version
 
