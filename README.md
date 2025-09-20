@@ -1,4 +1,4 @@
-# Electronic Filing / Case Management System (DAWSON)
+## Electronic Filing / Case Management System (DAWSON)
 
 [![DeepScan grade](https://deepscan.io/api/teams/8976/projects/17137/branches/383813/badge/grade.svg)](https://deepscan.io/dashboard#view=project&tid=8976&pid=17137&bid=383813)
 
